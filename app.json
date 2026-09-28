@@ -40,6 +40,13 @@
           "color": "#1F5FBF"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "89174777-41f4-404a-9bcc-4d7a01da4198"
+      }
+    },
+    "owner": "pressprosio"
   }
 }
