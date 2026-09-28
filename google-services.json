@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1049882946641",
+    "project_id": "io-presspros-liveassist",
+    "storage_bucket": "io-presspros-liveassist.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1049882946641:android:5e299ef598dbeba3359c70",
+        "android_client_info": {
+          "package_name": "io.presspros.liveassist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCO5_fFp1tbfAIybJzrGyBm6J2AvEH221s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
