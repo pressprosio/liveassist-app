@@ -1,7 +1,14 @@
 import type { ConvState } from './theme';
 
+export interface NotifyPrefs {
+  handoffs: boolean;
+  new_chats: boolean;
+  messages: 'mine' | 'all' | 'none';
+}
+
 export interface Agent {
   id: string; name: string; email: string; avatar: string | null; role: 'admin' | 'agent'; must_change_password: boolean;
+  notify?: NotifyPrefs;
 }
 
 export interface ConversationSummary {

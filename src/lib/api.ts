@@ -1,5 +1,5 @@
 /** REST calls to the hub (sign-in, password, devices). Live chat traffic goes over the socket. */
-import type { Agent } from './types';
+import type { Agent, NotifyPrefs } from './types';
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -54,6 +54,9 @@ export const api = {
 
   removeDevice: (hubUrl: string, token: string, pushToken: string) =>
     request<{ ok: true }>(hubUrl, '/agent/devices', { method: 'DELETE', token, body: { token: pushToken } }),
+
+  updateNotifications: (hubUrl: string, token: string, prefs: NotifyPrefs) =>
+    request<{ agent: Agent }>(hubUrl, '/agent/notifications', { method: 'PUT', token, body: prefs }),
 
   testPush: (hubUrl: string, token: string) =>
     request<{ ok: true; devices: number }>(hubUrl, '/agent/devices/test', { method: 'POST', token, body: {} }),

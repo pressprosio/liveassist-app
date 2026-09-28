@@ -5,11 +5,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 import { Alert, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as Notifications from 'expo-notifications';
 import { api, normalizeHubUrl } from './api';
 import { HubSocket, type ConnectionState, type HubEvent } from './hubSocket';
 import { getPushToken, setBadge, type PushStatus } from './push';
 import { KEYS, storage } from './storage';
-import type { Agent, ChatMessage, ConversationSummary, Session } from './types';
+import type { Agent, ChatMessage, ConversationSummary, NotifyPrefs, Session } from './types';
 
 interface State {
   status: 'loading' | 'signedOut' | 'signedIn';
@@ -116,6 +117,8 @@ interface Ctx extends State {
   typingSignal(id: string, value: boolean): void;
   suggest(id: string): Promise<string>;
   enablePush(): Promise<void>;
+  updateNotifications(prefs: NotifyPrefs): Promise<void>;
+  setViewing(id: string | null): void;
   testPush(): Promise<number>;
   lastHub: () => Promise<string | null>;
 }
@@ -135,6 +138,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const suggestions = useRef(new Map<string, (text: string) => void>());
   const pendingSends = useRef(new Map<string, string>()); // client_id → conversation id
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const viewing = useRef<string | null>(null); // conversation currently on screen
   sessionRef.current = state.session;
 
   const persist = useCallback(async (s: Session | null) => {
@@ -216,9 +220,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           );
         }
         break;
-      case 'handoff.requested':
-        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      case 'alert': {
+        // Sent for new chats, visitor messages and handoffs, to the people whose settings ask for them.
+        const me = sessionRef.current?.agent.id;
+        if (!me || !Array.isArray(e.to) || !e.to.includes(me) || Platform.OS === 'web') break;
+        if (viewing.current === e.conversation_id && e.kind !== 'handoff') {
+          // Already looking at this chat: a tap on the wrist is enough.
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          break;
+        }
+        Notifications.scheduleNotificationAsync({
+          content: { title: String(e.title || 'LiveAssist'), body: String(e.body || ''), sound: 'default', data: { conversation_id: e.conversation_id, kind: e.kind } },
+          trigger: Platform.OS === 'android' ? { channelId: 'chats' } : null,
+        }).catch(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}));
         break;
+      }
       case 'suggestion': {
         const resolve = suggestions.current.get(e.conversation_id);
         suggestions.current.delete(e.conversation_id);
@@ -272,7 +288,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const mustChange = state.session?.agent.must_change_password;
   useEffect(() => {
-    if (signedIn && mustChange === false) void enablePush();
+    // Register as soon as the person is fully signed in (older saved sessions may lack the flag).
+    if (signedIn && !mustChange) void enablePush();
   }, [signedIn, mustChange, enablePush]);
 
   /* ---------- App icon badge: chats waiting for a person ---------- */
@@ -368,6 +385,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
 
       enablePush,
+
+      async updateNotifications(prefs) {
+        const s = sessionRef.current;
+        if (!s) return;
+        const res = await api.updateNotifications(s.hubUrl, s.token, prefs);
+        await persist({ ...s, agent: res.agent });
+        dispatch({ type: 'agent', agent: res.agent });
+      },
+
+      setViewing(id) {
+        viewing.current = id;
+      },
 
       async testPush() {
         const s = sessionRef.current;

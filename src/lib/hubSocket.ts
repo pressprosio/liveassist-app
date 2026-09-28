@@ -27,7 +27,12 @@ export class HubSocket {
   start() {
     this.stopped = false;
     this.appSub = AppState.addEventListener('change', (s: AppStateStatus) => {
-      if (s === 'active' && !this.isOpen()) this.connectNow();
+      if (s === 'active') {
+        if (!this.isOpen()) this.connectNow();
+      } else if (s === 'background') {
+        // Disconnect so the hub knows the app isn't on screen and sends push notifications instead.
+        this.disconnect();
+      }
     });
     this.connect();
   }
@@ -39,6 +44,14 @@ export class HubSocket {
     const ws = this.ws;
     this.ws = null;
     ws?.close();
+  }
+
+  private disconnect() {
+    this.clearTimers();
+    const ws = this.ws;
+    this.ws = null;
+    ws?.close();
+    this.h.onState('offline');
   }
 
   setToken(token: string) {
@@ -75,7 +88,7 @@ export class HubSocket {
     this.h.onState('connecting');
     const ws = new WebSocket(socketUrl(this.hubUrl));
     this.ws = ws;
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token: this.token }));
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token: this.token, client: 'app' }));
     ws.onmessage = (e) => {
       let msg: HubEvent;
       try {

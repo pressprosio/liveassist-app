@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { ConnectionBanner } from '@/components/ConnectionBanner';
@@ -24,6 +24,14 @@ export default function Conversation() {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingOn = useRef(false);
+
+  // While this chat is on screen, new messages in it don't trigger a banner and sound.
+  useFocusEffect(
+    useCallback(() => {
+      s.setViewing(id);
+      return () => s.setViewing(null);
+    }, [id]), // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Load (and reload after reconnecting) the full transcript.
   useEffect(() => {
